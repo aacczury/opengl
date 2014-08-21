@@ -12,40 +12,9 @@
 using namespace std;
 
 GLuint texture;
-	
-void init(void){
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClearDepth(1.0);
-	
-	glEnable(GL_LIGHT0);
-	glEnable(GL_LIGHTING);
-	glEnable(GL_DEPTH_TEST);
-	
-	GLfloat light_pos[] = {1.50, 1.00, 0.00, 1.00}; // (x, y, z, luminance) 
-	GLfloat light_Ka[] = {0.00, 1.00, 0.00, 1.00}; // (R, G, B, A)
-	GLfloat light_Kd[] = {1.00, 1.00, 1.00, 1.00}; // (R, G, B, A)
-	GLfloat light_Ks[] = {1.00, 1.00, 1.00, 1.00}; // (R, G, B, A)
-	
-	glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, light_Ka);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_Kd);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, light_Ks);
-	
-	/*GLfloat material_Ka[] = {0.11, 0.06, 0.11, 1.00};
-	GLfloat material_Kd[] = {0.43, 0.47, 0.54, 1.00};
-	GLfloat material_Ks[] = {0.33, 0.33, 0.52, 1.00};
-	GLfloat material_Ke[] = {0.00, 0.00, 0.00, 0.00};
-	GLfloat material_Se = 10;
-	
-	glMaterialfv(GL_FRONT, GL_AMBIENT, material_Ka);
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, material_Kd);
-	glMaterialfv(GL_FRONT, GL_SPECULAR, material_Ks);
-	glMaterialfv(GL_FRONT, GL_EMISSION, material_Ke);
-	glMaterialf(GL_FRONT, GL_SHININESS, material_Se);*/
-}
 
-GLuint LoadTextureBMP( const char *filename ){	
-	GLuint texture;
+
+void LoadTextureBMP( const char *filename ){	
 	
 	unsigned char header[54];
 	unsigned int dataPos;
@@ -70,23 +39,28 @@ GLuint LoadTextureBMP( const char *filename ){
 	
 	file.close();
 	
+	for(int i = 0; i < imageSize/3; ++ i){
+		unsigned char tmp;
+		tmp = data[i*3+2];
+		data[i*3+2] = data[i*3];
+		data[i*3] = tmp;
+	}
+	
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	
-	return texture;
 }
 
-void renderObj(){
-	ifstream inputObj("ppsh41.obj");
+vector<double *> v;
+vector<double *> vt;
+vector<double *> vn;
+vector<int **> f;
+
+void openObj(){
+	ifstream inputObj("obj/ppsh41.obj");
 	string str;
-	
-	vector<double *> v;
-	vector<double *> vt;
-	vector<double *> vn;
-	vector<int **> f;
 	
 	while(getline(inputObj, str)){
 		smatch m;
@@ -138,10 +112,59 @@ void renderObj(){
 			}
 		}
 	}
+	LoadTextureBMP("obj/ppsh41.bmp");
+}
+
+void init(void){
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClearDepth(1.0);
 	
+	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	
+	GLfloat light_pos[] = {1.50, 1.00, 0.00, 1.00}; // (x, y, z, luminance) 
+	GLfloat light_Ka[] = {1.00, 1.00, 1.00, 1.00}; // (R, G, B, A)
+	GLfloat light_Kd[] = {1.00, 1.00, 1.00, 1.00}; // (R, G, B, A)
+	GLfloat light_Ks[] = {1.00, 1.00, 1.00, 1.00}; // (R, G, B, A)
+	
+	glLightfv(GL_LIGHT0, GL_POSITION, light_pos);
+	glLightfv(GL_LIGHT0, GL_AMBIENT, light_Ka);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_Kd);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, light_Ks);
+	
+	GLfloat material_Ka[] = {0.878431, 0.878431, 0.878431, 1.00};
+	GLfloat material_Kd[] = {0.878431, 0.878431, 0.878431, 1.00};
+	GLfloat material_Ks[] = {1.0, 1.0, 1.0, 1.00};
+	GLfloat material_Ke[] = {0.00, 0.00, 0.00, 0.00};
+	GLfloat material_Se = 10;
+	
+	glMaterialfv(GL_FRONT, GL_AMBIENT, material_Ka);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, material_Kd);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, material_Ks);
+	glMaterialfv(GL_FRONT, GL_EMISSION, material_Ke);
+	glMaterialf(GL_FRONT, GL_SHININESS, material_Se);
+	
+	openObj();
+}
+
+int old_rot_x=0;   //剛按下滑鼠時的視窗座標
+int old_rot_y=0;
+
+int rot_x=0;      //拖曳後的相對座標，用這決定要旋轉幾度
+int rot_y=0;
+
+int record_x=0;      //紀錄上一次旋轉的角度
+int record_y=0;
+
+void renderObj(){
     glColor3f(1.0f,1.0f,1.0f);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, LoadTextureBMP("ppsh41.bmp"));
+	glBindTexture(GL_TEXTURE_2D, texture);
+	
+	glRotatef((float)rot_y+(float)record_y, 1.0, 0.0, 0.0);//以x軸當旋轉軸
+	glRotatef((float)rot_x+(float)record_x, 0.0, 1.0, 0.0);//以y軸當旋轉軸
+	
 	for(int i = 0; i < f.size(); ++ i){
 		glBegin( GL_TRIANGLES );
 			glTexCoord2f(vt[f[i][0][1]-1][0], vt[f[i][0][1]-1][1]); glVertex3f( v[f[i][0][0]-1][0], v[f[i][0][0]-1][1], v[f[i][0][0]-1][2] );
@@ -153,6 +176,11 @@ void renderObj(){
 
 void display(void){
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt (0.0, 0.0, 70.0, // eye
+				0.0, 0.0, 0.0, //center
+				0.0, 1.0, 0.0); //up
 	renderObj();
 	glutSwapBuffers();
 }
@@ -161,17 +189,30 @@ void resize(int w, int h){
 	glViewport (0, 0, (GLsizei) w, (GLsizei) h);
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(60.0, (GLdouble) w / h, 1.0, 80.0);
+	gluPerspective(60.0, (GLdouble) w / h, 1.0, 150.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	gluLookAt (0.0, 0.0, 70.0, // eye
-				0.0, 0.0, 0.0, //center
-				0.0, 1.0, 0.0); //up
 }
 
-void idle(void){
-	/*t += dt;
-	glutPostRedisplay();*/
+void mousebutton(int button, int state, int x, int y){
+	if(state){
+		record_x += x - old_rot_x;
+		record_y += y - old_rot_y;
+      
+		rot_x = 0;   //沒有歸零會有不理想的結果
+		rot_y = 0;
+	}
+	else{
+		old_rot_x = x;
+		old_rot_y = y;
+	}
+}
+
+void mousemotion(int x, int y)
+{
+	rot_x = x - old_rot_x;
+	rot_y = y - old_rot_y;
+	glutPostRedisplay();
 }
 
 void keyboard(unsigned char key, int x, int y){
@@ -199,8 +240,9 @@ int main(int argc, char *argv[])
 	init();
     glutDisplayFunc(display);
 	glutReshapeFunc(resize);
-	//glutIdleFunc(idle);
 	glutKeyboardFunc(keyboard);
+	glutMouseFunc(mousebutton);
+	glutMotionFunc(mousemotion);
     glutMainLoop();
     return 0;
 }
